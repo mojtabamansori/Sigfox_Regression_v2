@@ -23,7 +23,7 @@ def section_true_not_mearge(section_list, Y_true, i_model):
 def load_date_def(list_random_seed, n_s):
     dataset = np.array(pd.read_csv(f'..\Dataset\Original.csv'))
     X, Y = dataset[:, :137], dataset[:, 138:]
-    n_s = 1
+    n_s = n_s
     X_train_combined = None
     Y_train_combined = None
     X_test_combined = None
@@ -51,6 +51,10 @@ def load_date_def(list_random_seed, n_s):
         imputer = SimpleImputer(strategy='mean')
         X_train_temp_imputed = imputer.fit_transform(X_train_temp)
         X_test_temp_imputed = imputer.transform(X_test_temp)
+
+        X_train_temp_imputed = X_train_temp
+        X_test_temp_imputed = X_test_temp
+
 
         if flag == 1:
             if X_train_combined == None:
