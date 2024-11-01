@@ -37,11 +37,11 @@ def load_date_def(list_random_seed, n_s):
 
         index = (((min_getway + (step * section)) < index_Y) & ((min_getway + (step * (section + 1))) > index_Y))
 
-        # X_current = X[index, :]
-        # Y_current = Y[index, :]
+        X_current = X[index, :]
+        Y_current = Y[index, :]
 
-        X_current = X
-        Y_current = Y
+        # X_current = X
+        # Y_current = Y
 
         X_train_temp, X_test_temp, \
             Y_train_temp, Y_test_temp = train_test_split(X_current, Y_current,
@@ -52,8 +52,8 @@ def load_date_def(list_random_seed, n_s):
         X_train_temp_imputed = imputer.fit_transform(X_train_temp)
         X_test_temp_imputed = imputer.transform(X_test_temp)
 
-        X_train_temp_imputed = X_train_temp
-        X_test_temp_imputed = X_test_temp
+        # X_train_temp_imputed = X_train_temp
+        # X_test_temp_imputed = X_test_temp
 
 
         if flag == 1:
@@ -380,6 +380,197 @@ def pathloss_preprose(x,y):
     distances = np.array(distances).T
     combined_data = np.hstack((x, distances))
     return combined_data
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+
+def split_data_by_line_from_excel(data, coords):
+    # مسیر فایل اکسل
+    file_path = '../Dataset/GATEWAY_POINT_UPDATED.xlsx'
+
+    # خواندن داده‌ها از فایل اکسل
+    df = pd.read_excel(file_path)
+
+    # محاسبه مراکز کلاسترها (برای کلاستر 0 و کلاستر 1)
+    cluster_0 = df[df['cluster'] == 0]
+    center_0 = (cluster_0['centroid_x'].mean(), cluster_0['centroid_y'].mean())
+
+    cluster_1 = df[df['cluster'] == 1]
+    center_1 = (cluster_1['centroid_x'].mean(), cluster_1['centroid_y'].mean())
+
+    # استخراج مختصات مراکز کلاسترها
+    center_0_x, center_0_y = center_0
+    center_1_x, center_1_y = center_1
+
+    # محاسبه شیب و شیب عمود
+    slope = (center_1_y - center_0_y) / (center_1_x - center_0_x)
+    perpendicular_slope = -1 / slope
+
+    # محاسبه نقطه میانی
+    mid_x = (center_0_x + center_1_x) / 2
+    mid_y = (center_0_y + center_1_y) / 2
+
+    above_line, below_line = [], []
+    above_line_coords, below_line_coords = [], []
+
+    # مقدار بایاس برای خط
+    bias = (mid_x * perpendicular_slope) + mid_y
+
+    for i, (y, x) in enumerate(coords):  # جابجایی y و x
+        line_y_value = perpendicular_slope * (x - mid_x) + mid_y  # استفاده از x برای محاسبه
+
+        if y > line_y_value:
+            above_line.append(data[i])  # فقط استفاده از مقادیر data
+            above_line_coords.append((y, x))  # ذخیره مختصات
+        else:
+            below_line.append(data[i])  # فقط استفاده از مقادیر data
+            below_line_coords.append((y, x))  # ذخیره مختصات
+
+    # تبدیل لیست‌ها به آرایه‌های numpy
+    above_line = np.array(above_line)
+    below_line = np.array(below_line)
+    above_line_coords = np.array(above_line_coords)
+    below_line_coords = np.array(below_line_coords)
+
+    # ترسیم نقاط و خط
+    plt.figure(figsize=(10, 6))
+
+    # ترسیم همه نقاط
+    plt.scatter(coords[:, 1], coords[:, 0], color='lightgray', label='All Coordinates', alpha=0.5)
+
+    # رسم خط عمود
+    line_x = np.linspace(center_0_x, center_1_x, 100)
+    line_y = perpendicular_slope * (line_x - mid_x) + mid_y
+    plt.plot(line_x, line_y, color='green', label='Perpendicular Line', linestyle='--')
+
+
+
+    # تنظیمات نمودار
+    plt.xlabel('X Coordinates')
+    plt.ylabel('Y Coordinates')
+    plt.title('Data Split by Perpendicular Line')
+    plt.axhline(50.75, color='black', linewidth=0.5, ls='--')
+    plt.axvline(3.6, color='black', linewidth=0.5, ls='--')
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+    return above_line, below_line, above_line_coords, below_line_coords
+
+import numpy as np
+import math
+
+aaaa = np.array([9, 10, 11, 12, 17,
+                  19, 20, 22, 26, 30,
+                  58, 61, 66, 70, 71,
+                  72, 75, 82, 83, 84,
+                  85, 86, 88, 89, 90, 91,
+                  92, 94, 96, 97, 99, 100,
+                  101, 103, 104, 105, 107,
+                  110, 118, 119, 28, 24, 18,
+                  62, 102, 126, 0, 1, 2, 4,
+                  6, 7, 8, 13, 14, 15, 16,
+                  21, 29, 31, 32, 33,
+                  36, 37, 38, 39, 40, 43,
+                  44, 59, 60, 64, 68, 73, 109])
+
+def pathloss_preprose_d(x, y):
+    P = 0.0145
+    f = 868
+    distances = []
+
+    x = np.array(x)
+    y = np.array(y)
+
+    # پردازش هر ستون از x
+    for i2 in range(x.shape[1]):
+        x_1 = x[:, i2]
+        y_1 = y[:, 0]
+        y_2 = y[:, 1]
+
+        # محاسبه افت توان
+        P_loss = P - x_1
+        list_of_d = 10 ** ((P_loss - 20 * np.log10(f) - 32.45) / 20)
+
+        # محاسبه قطر
+        len_x = np.max(y_1) - np.min(y_1)
+        len_y = np.max(y_2) - np.min(y_2)
+        diameter = math.sqrt((len_x ** 2) + (len_y ** 2))
+        list_new_d = (diameter * list_of_d) / 1068
+
+        distances.append(list_new_d)
+
+    # تبدیل لیست به آرایه numpy
+    distances = np.array(distances).T
+
+    # ترکیب داده‌ها
+    combined_data = np.hstack((x, distances))
+
+    # بازگشت فقط 137 ستون آخر
+    return combined_data[:, -137:]  # بازگشت 137 ستون آخر
+
+def split_data_by_cluster_train(X_test_d,id):
+    # مسیر فایل اکسل
+    file_path = '../Dataset/GATEWAY_POINT_UPDATED.xlsx'
+
+    # خواندن داده‌ها از فایل اکسل
+    df = pd.read_excel(file_path)
+
+    # فیلتر کردن داده‌ها بر اساس کلاستر
+    cluster_0 = df[df['cluster'] == 0]['NAMGE']
+    cluster_1 = df[df['cluster'] == 1]['NAMGE']
+    cluster_0 = np.array(cluster_0)
+    cluster_1 = np.array(cluster_1)
+
+    x1 = X_test_d[:, cluster_0]
+
+    x1_test = []
+
+    for i in range(len(x1)):
+        if id == 0:
+            x1_test.append(X_test_d[i, aaaa])
+        if id == 1:
+            x1_test.append(X_test_d[i, cluster_1])
+
+    return np.array(x1_test)
+
+def split_data_by_cluster_test(X_test_d, Y_test, X_test_combined):
+    # مسیر فایل اکسل
+    file_path = '../Dataset/GATEWAY_POINT_UPDATED.xlsx'
+
+    # خواندن داده‌ها از فایل اکسل
+    df = pd.read_excel(file_path)
+
+    # فیلتر کردن داده‌ها بر اساس کلاستر
+    cluster_0 = df[df['cluster'] == 0]['NAMGE']
+    cluster_1 = df[df['cluster'] == 1]['NAMGE']
+    cluster_0 = np.array(cluster_0)
+    cluster_1 = np.array(cluster_1)
+
+    x1 = X_test_d[:,cluster_0]
+    x2 = X_test_d[:,cluster_1]
+
+    x1_test = []
+    x2_test = []
+    y1_test = []
+    y2_test = []
+    for i in range(len(x1)):
+        sum_1 = np.sum(x1[i,:])
+        sum_2 = np.sum(x2[i,:])
+        if sum_1 <= sum_2:
+            x1_test.append(X_test_combined[i,aaaa])
+            y1_test.append(Y_test[i,:])
+        if sum_2 <= sum_1:
+            x2_test.append(X_test_combined[i,cluster_1])
+            y2_test.append(Y_test[i,:])
+
+    return x1_test, x2_test , y1_test, y2_test
+
+
 
 
 
